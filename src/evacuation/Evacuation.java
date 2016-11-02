@@ -1,8 +1,5 @@
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.StringTokenizer;
-import java.util.Arrays;
+import java.util.*;
 
 public class Evacuation {
     private static FastScanner in;
@@ -17,7 +14,101 @@ public class Evacuation {
     private static int maxFlow(FlowGraph graph, int from, int to) {
         int flow = 0;
         /* your code goes here */
+
+        // compute initial path
+        List<Integer> path = getPath(graph, from, to);
+
+        // while there is a path...
+        while (path.size() > 0) {
+            // calculate the min residual flow through the current path
+            int minResidual = Integer.MAX_VALUE;
+
+            for (Integer id_edge : path) {
+                Edge e = graph.getEdge(id_edge);
+
+                int residual = e.capacity - e.flow;
+                if (minResidual > residual) {
+                    minResidual = residual;
+                }
+            }
+
+            // update the graph with the min residual flow
+            for (Integer id_edge : path) {
+                graph.addFlow(id_edge, minResidual);
+            }
+
+            // recalculate the path
+            path = getPath(graph, from, to);
+        }
+
+        // calculate the maxflow
+        for (Integer id_edge : graph.getIds(from)) {
+            Edge e = graph.getEdge(id_edge);
+            flow += e.flow;
+        }
+
         return flow;
+    }
+
+    // implementing BFS search (see dsa03_pa03/bfs/BFS.java)
+    private static List<Integer> getPath(FlowGraph graph, int from, int to) {
+        // initialize the result (a backward sequence of edges to traverse from "from" to "to")
+        List<Integer> result = new ArrayList<>();
+
+        // initialize the array of visited nodes
+        List<Integer> visited = new ArrayList<>();
+        // initialize the map of parent nodes
+        Map<Integer, Integer> parents = new HashMap<>();
+
+        // initialize the node queue
+        Queue<Integer> q = new LinkedList<>();
+        q.add(from);
+
+        boolean isPathFound = false;
+
+        // begin traversing a graph
+        while (!q.isEmpty()) {
+            // get the first node in the queue
+            Integer u = q.remove();
+
+            // get the nodes adjacent to the first node in the queue
+            List<Integer> u_adj = graph.getIds(u);
+
+            // for every node v adjacent to u...
+            for (Integer v : u_adj) {
+                Edge v_edge = graph.getEdge(v);
+
+                int residualFlow = v_edge.capacity - v_edge.flow;
+                if ((residualFlow > 0) && !visited.contains(v_edge.to)) {
+                    q.add(v_edge.to);
+                    visited.add(v_edge.to);
+                    parents.put(v_edge.to, v);
+
+                    // we can break early if the path is found
+                    if (v_edge.to == to) {
+                        isPathFound = true;
+                        break;
+                    }
+                }
+            }
+
+            // we can break early if the path is found
+            if (isPathFound) {
+                break;
+            }
+        }
+
+        if (visited.contains(to)) {
+            // build the path as a backward sequence of edges
+            while (to != from) {
+                Integer tmpStart = parents.get(to);
+                result.add(tmpStart);
+                Edge e = graph.getEdge(tmpStart);
+                to = e.from;
+            }
+        }
+
+        return result;
     }
 
     static FlowGraph readGraph() throws IOException {
